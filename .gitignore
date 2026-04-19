@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environments
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backend
+backend/healthai-backend/healthai.db
+backend/healthai-backend/.env.local
+backend/healthai-backend/instance/
+
+# Frontend
+front/healthai-front/node_modules/
+front/healthai-front/dist/
+front/healthai-front/.env.local
+
+# npm
+npm-debug.log
+package-lock.json
+yarn.lock
+
+# Logs
+*.log
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Temporary files
+tmp/
+temp/
