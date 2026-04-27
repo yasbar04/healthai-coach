@@ -34,7 +34,7 @@ export default function App() {
         <Route path="/activities" element={<Activities />} />
         <Route path="/nutrition" element={<Nutrition />} />
         <Route path="/users" element={<AdminRoute><Users /></AdminRoute>} />
-        <Route path="/etl" element={<EtlQuality />} />
+        <Route path="/etl" element={<AdminRoute><EtlQuality /></AdminRoute>} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

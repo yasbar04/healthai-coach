@@ -3,12 +3,12 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 
 const links = [
-  { to: "/dashboard",  end: true,  icon: "📊", label: "Dashboard"    },
-  { to: "/daily-log",  end: false, icon: "📝", label: "Journal"       },
-  { to: "/activities", end: false, icon: "💪", label: "Exercices"   },
-  { to: "/nutrition",  end: false, icon: "🥗", label: "Nutrition"    },
-  { to: "/users",      end: false, icon: "👥", label: "Utilisateurs", adminOnly: true },
-  { to: "/etl",        end: false, icon: "⚙️", label: "Qualité ETL" },
+  { to: "/dashboard",  end: true,  icon: "📊", label: "Dashboard"     },
+  { to: "/daily-log",  end: false, icon: "📝", label: "Journal"        },
+  { to: "/activities", end: false, icon: "💪", label: "Exercices"      },
+  { to: "/nutrition",  end: false, icon: "🥗", label: "Nutrition"      },
+  { to: "/users",      end: false, icon: "👥", label: "Utilisateurs",  adminOnly: true },
+  { to: "/etl",        end: false, icon: "⚙️", label: "Qualité ETL",  adminOnly: true },
 ];
 
 export default function Nav() {

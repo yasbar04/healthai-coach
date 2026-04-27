@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import Card from "../components/Card";
 import Loading from "../components/Loading";
 import ErrorBanner from "../components/ErrorBanner";
+import { useAuth } from "../auth/AuthContext";
 
 type Food = {
   id: number;
@@ -31,6 +32,9 @@ const MEAL_COLORS: Record<string, string> = {
 };
 
 export default function Nutrition() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
   const [foodSearch, setFoodSearch] = useState("");
   const [mealTypeFilter, setMealTypeFilter] = useState("");
   const [foods, setFoods] = useState<Food[]>([]);
@@ -48,7 +52,7 @@ export default function Nutrition() {
     try {
       const [f, l] = await Promise.all([
         api.get("/foods", { params: { search: foodSearch || undefined, meal_type: mealTypeFilter || undefined, limit: 200 } }),
-        api.get("/nutrition-logs", { params: { user_id: userId || undefined, from, to } })
+        api.get("/nutrition-logs", { params: { user_id: isAdmin ? (userId || undefined) : undefined, from, to } })
       ]);
       setFoods(f.data?.items ?? f.data);
       setLogs(l.data?.items ?? l.data);
@@ -76,10 +80,12 @@ export default function Nutrition() {
       {err && <ErrorBanner message={err} />}
 
       <div className="filters-row">
-        <div className="filter-group">
-          <span className="filter-label">User ID</span>
-          <input id="uid" value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="ex: 1" style={{ width: 100 }} />
-        </div>
+        {isAdmin && (
+          <div className="filter-group">
+            <label htmlFor="uid" className="filter-label">User ID</label>
+            <input id="uid" className="input-narrow" value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="ex: 1" />
+          </div>
+        )}
         <div className="filter-group">
           <span className="filter-label">Recherche aliment</span>
           <input id="search" value={foodSearch} onChange={(e) => setFoodSearch(e.target.value)} placeholder="ex: chicken..." style={{ width: 160 }} />

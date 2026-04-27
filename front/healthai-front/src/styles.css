@@ -257,6 +257,7 @@ input[type="date"] { width: auto; }
 }
 .filter-group { display: flex; flex-direction: column; gap: 4px; }
 .filter-label { font-size: 0.78rem; font-weight: 600; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em; }
+.input-narrow { width: 100px; }
 
 .page-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
 .page-header h1 { font-size: 1.6rem; font-weight: 800; color: var(--text); letter-spacing: -0.4px; }

@@ -52,23 +52,49 @@ function ExerciseCard({ ex, onClick }: { ex: Exercise; onClick: () => void }) {
 
 function ExerciseModal({ ex, onClose }: { ex: Exercise; onClose: () => void }) {
   const [imgErr, setImgErr] = useState(false);
+  const closeRef = React.useRef<HTMLButtonElement>(null);
+  const modalRef = React.useRef<HTMLDivElement>(null);
+  const titleId = `modal-title-${ex.exerciseId}`;
+
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    closeRef.current?.focus();
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key === "Tab" && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey ? document.activeElement === first : document.activeElement === last) {
+          e.preventDefault();
+          (e.shiftKey ? last : first).focus();
+        }
+      }
+    };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} aria-label="Fermer">✕</button>
+    <div className="modal-overlay" onClick={onClose} aria-hidden="true">
+      <div
+        className="modal-card"
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button ref={closeRef} className="modal-close" onClick={onClose} aria-label="Fermer la fiche exercice">✕</button>
         <div className="modal-img">
           {!imgErr
-            ? <img src={ex.imageUrl} alt={ex.name} onError={() => setImgErr(true)} />
-            : <div className="exercise-card-img-placeholder large">💪</div>
+            ? <img src={ex.imageUrl} alt={`Illustration : ${capitalize(ex.name)}`} onError={() => setImgErr(true)} />
+            : <div className="exercise-card-img-placeholder large" aria-hidden="true">💪</div>
           }
         </div>
         <div className="modal-body">
-          <h2>{capitalize(ex.name)}</h2>
+          <h2 id={titleId}>{capitalize(ex.name)}</h2>
           <div className="modal-tags">
             {ex.bodyParts.map((b) => (
               <span key={b} className="exercise-tag" data-bp={b.toUpperCase()}>{capitalize(b)}</span>
@@ -204,8 +230,12 @@ export default function Activities() {
           </select>
         </div>
         {(search || bodyPart) && (
-          <button className="btn-secondary" onClick={() => { setSearch(""); setBodyPart(""); }}>
-            ✕ Réinitialiser
+          <button
+            className="btn-secondary"
+            onClick={() => { setSearch(""); setBodyPart(""); }}
+            aria-label="Réinitialiser les filtres"
+          >
+            <span aria-hidden="true">✕</span> Réinitialiser
           </button>
         )}
       </div>

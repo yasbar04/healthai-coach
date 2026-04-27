@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
 import Card from "../components/Card";
 import Loading from "../components/Loading";
 import ErrorBanner from "../components/ErrorBanner";
@@ -68,6 +69,9 @@ function ProgressBar({ value, max, color, label }: { value: number; max: number;
 }
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
   const [from, setFrom] = useState(() => new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10));
   const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
 
@@ -174,21 +178,23 @@ export default function Dashboard() {
           <label htmlFor="to" className="filter-label">Au</label>
           <input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Date de fin" />
         </div>
-        <button className="btn-primary" onClick={load}>🔄 Actualiser</button>
+        <button className="btn-primary" onClick={load} aria-label="Actualiser les données du tableau de bord">
+          <span aria-hidden="true">🔄</span> Actualiser
+        </button>
         <div className="export-buttons">
-          <button 
+          <button
             className="btn-secondary"
             onClick={() => summary && exportAnalyticsSummary(summary, { from, to }, 'csv')}
-            title="Exporter les statistiques en CSV"
+            aria-label="Exporter les statistiques en CSV"
           >
-            📥 CSV
+            <span aria-hidden="true">📥</span> CSV
           </button>
-          <button 
+          <button
             className="btn-secondary"
             onClick={() => summary && exportAnalyticsSummary(summary, { from, to }, 'json')}
-            title="Exporter les statistiques en JSON"
+            aria-label="Exporter les statistiques en JSON"
           >
-            📥 JSON
+            <span aria-hidden="true">📥</span> JSON
           </button>
         </div>
       </div>
@@ -275,8 +281,8 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* ── Quality & ETL Section ── */}
-      {etlQuality?.summary && (
+      {/* ── Quality & ETL Section — admin only ── */}
+      {isAdmin && etlQuality?.summary && (
         <Card title="Qualité des Données" icon="✅">
           <div className="quality-section">
             <div className="quality-grid">
@@ -334,20 +340,20 @@ export default function Dashboard() {
             )}
 
             <div className="quality-export-buttons">
-              <Link to="/quality" className="btn-secondary">📊 Voir détails ETL</Link>
-              <button 
+              <Link to="/etl" className="btn-secondary">📊 Voir détails ETL</Link>
+              <button
                 className="btn-secondary"
                 onClick={() => etlQuality && exportQualityReport(etlQuality, 'csv')}
-                title="Exporter le rapport qualité en CSV"
+                aria-label="Exporter le rapport qualité en CSV"
               >
-                📥 CSV
+                <span aria-hidden="true">📥</span> CSV
               </button>
-              <button 
+              <button
                 className="btn-secondary"
                 onClick={() => etlQuality && exportQualityReport(etlQuality, 'json')}
-                title="Exporter le rapport qualité en JSON"
+                aria-label="Exporter le rapport qualité en JSON"
               >
-                📥 JSON
+                <span aria-hidden="true">📥</span> JSON
               </button>
             </div>
           </div>

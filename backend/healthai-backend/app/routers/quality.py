@@ -31,7 +31,7 @@ def current_user(authorization: str = Header(None), db: Session = Depends(get_db
         raise HTTPException(status_code=401, detail="Utilisateur introuvable.")
     return user
 
-@router.get("/etl-runs", response_model=list[EtlRunOut])
+@router.get("/etl-runs")
 def etl_runs(
     user: User = Depends(current_user), 
     db: Session = Depends(get_db),
@@ -39,14 +39,17 @@ def etl_runs(
     offset: int = Query(0, ge=0)
 ):
     """Récupérer l'historique des exécutions ETL"""
-    runs = db.query(EtlRun).order_by(EtlRun.started_at.desc()).limit(limit).offset(offset).all()
-    return [EtlRunOut(
+    query = db.query(EtlRun).order_by(EtlRun.started_at.desc())
+    total = query.count()
+    runs = query.limit(limit).offset(offset).all()
+    items = [EtlRunOut(
         id=r.id, source_name=r.source_name, status=r.status,
         started_at=r.started_at, ended_at=r.ended_at,
         rows_in=r.rows_in, rows_out=r.rows_out, errors_count=r.errors_count
     ) for r in runs]
+    return {"items": items, "total": total}
 
-@router.get("/etl-runs/{run_id}/errors", response_model=list[EtlErrorOut])
+@router.get("/etl-runs/{run_id}/errors")
 def run_errors(
     run_id: int, 
     user: User = Depends(current_user), 
@@ -54,11 +57,14 @@ def run_errors(
     limit: int = Query(100, le=500)
 ):
     """Récupérer les erreurs d'une exécution ETL"""
-    errs = db.query(EtlError).filter(EtlError.run_id==run_id).order_by(EtlError.created_at.desc()).limit(limit).all()
-    return [EtlErrorOut(
+    query = db.query(EtlError).filter(EtlError.run_id==run_id).order_by(EtlError.created_at.desc())
+    total = query.count()
+    errs = query.limit(limit).all()
+    items = [EtlErrorOut(
         id=e.id, severity=e.severity, row_reference=e.row_reference,
         message=e.message, created_at=e.created_at
     ) for e in errs]
+    return {"items": items, "total": total}
 
 @router.get("/data-quality-summary")
 def data_quality_summary(user: User = Depends(current_user), db: Session = Depends(get_db)):

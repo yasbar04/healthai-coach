@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HealthAI Coach — Support de Soutenance MSPR TPRE501</title>
+  <style>
+    /* ── Reset & variables ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:   #059669;
+      --green-l: #d1fae5;
+      --blue:    #2563eb;
+      --blue-l:  #dbeafe;
+      --purple:  #7c3aed;
+      --purple-l:#ede9fe;
+      --amber:   #d97706;
+      --amber-l: #fef3c7;
+      --red:     #dc2626;
+      --gray-900:#111827;
+      --gray-700:#374151;
+      --gray-400:#9ca3af;
+      --gray-100:#f3f4f6;
+      --white:   #ffffff;
+      --shadow:  0 4px 24px rgba(0,0,0,.12);
+      --radius:  12px;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--gray-100);
+      color: var(--gray-900);
+      line-height: 1.6;
+    }
+
+    /* ── Slider container ── */
+    #slider {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Slides ── */
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 48px 64px;
+      opacity: 0;
+      transform: translateX(100%);
+      transition: opacity .4s ease, transform .4s ease;
+      overflow: auto;
+    }
+    .slide.active {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .slide.prev {
+      opacity: 0;
+      transform: translateX(-100%);
+    }
+
+    /* ── Backgrounds par slide ── */
+    .slide-cover    { background: linear-gradient(135deg, #064e3b 0%, #065f46 60%, #059669 100%); color: white; }
+    .slide-context  { background: linear-gradient(135deg, #1e3a5f 0%, #1d4ed8 100%); color: white; }
+    .slide-archi    { background: linear-gradient(135deg, #3b0764 0%, #7c3aed 100%); color: white; }
+    .slide-sources  { background: linear-gradient(135deg, #78350f 0%, #d97706 100%); color: white; }
+    .slide-etl      { background: linear-gradient(135deg, #064e3b 0%, #059669 100%); color: white; }
+    .slide-bdd      { background: linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%); color: white; }
+    .slide-api      { background: linear-gradient(135deg, #4a044e 0%, #a21caf 100%); color: white; }
+    .slide-frontend { background: linear-gradient(135deg, #7f1d1d 0%, #dc2626 100%); color: white; }
+    .slide-demo     { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; }
+    .slide-bilan    { background: linear-gradient(135deg, #064e3b 0%, #065f46 60%, #059669 100%); color: white; }
+
+    /* ── Typography ── */
+    .slide-num {
+      position: absolute;
+      top: 20px; right: 28px;
+      font-size: .8rem;
+      opacity: .6;
+      font-weight: 600;
+      letter-spacing: .08em;
+    }
+
+    h1 { font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 800; margin-bottom: .3em; line-height: 1.1; }
+    h2 { font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 700; margin-bottom: .8em; }
+    h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: .4em; }
+
+    .subtitle {
+      font-size: clamp(1rem, 2vw, 1.3rem);
+      opacity: .85;
+      margin-bottom: 2rem;
+    }
+
+    .label {
+      font-size: .75rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      opacity: .7;
+      font-weight: 600;
+      margin-bottom: .5rem;
+    }
+
+    /* ── Cards ── */
+    .cards { display: grid; gap: 16px; width: 100%; max-width: 960px; }
+    .cards-2 { grid-template-columns: 1fr 1fr; }
+    .cards-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .cards-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+    .card {
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      backdrop-filter: blur(8px);
+    }
+    .card-dark {
+      background: rgba(0,0,0,.15);
+      border-color: rgba(255,255,255,.1);
+    }
+    .card .icon { font-size: 2rem; margin-bottom: .5rem; }
+    .card h3   { margin-bottom: .3rem; }
+    .card p, .card li { font-size: .9rem; opacity: .9; }
+    .card ul   { padding-left: 1.2em; }
+    .card li   { margin-bottom: .25rem; }
+
+    /* ── Badge / pill ── */
+    .pill {
+      display: inline-block;
+      background: rgba(255,255,255,.2);
+      border: 1px solid rgba(255,255,255,.3);
+      border-radius: 999px;
+      padding: .2em .9em;
+      font-size: .8rem;
+      font-weight: 600;
+      margin: .2em;
+    }
+
+    /* ── Table ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .85rem;
+      max-width: 900px;
+    }
+    th {
+      background: rgba(255,255,255,.2);
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 700;
+      border-bottom: 2px solid rgba(255,255,255,.3);
+    }
+    td {
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255,255,255,.12);
+    }
+    tr:hover td { background: rgba(255,255,255,.07); }
+
+    /* ── Progress bar ── */
+    .pbar-wrap { margin: .5rem 0; }
+    .pbar-label { display: flex; justify-content: space-between; font-size: .8rem; margin-bottom: .25rem; }
+    .pbar-track { background: rgba(255,255,255,.15); border-radius: 999px; height: 8px; overflow: hidden; }
+    .pbar-fill  { height: 100%; border-radius: 999px; background: rgba(255,255,255,.8); }
+
+    /* ── Navigation ── */
+    nav#controls {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(0,0,0,.6);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 999px;
+      padding: 8px 20px;
+      backdrop-filter: blur(12px);
+      z-index: 100;
+    }
+    nav#controls button {
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.25);
+      color: white;
+      border-radius: 8px;
+      padding: 6px 16px;
+      cursor: pointer;
+      font-size: .85rem;
+      font-weight: 600;
+      transition: background .2s;
+    }
+    nav#controls button:hover, nav#controls button:focus {
+      background: rgba(255,255,255,.3);
+      outline: 2px solid white;
+      outline-offset: 2px;
+    }
+    nav#controls button:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+    #page-indicator {
+      color: white;
+      font-size: .85rem;
+      font-weight: 600;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    /* ── Dots ── */
+    #dots {
+      position: fixed;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 100;
+    }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.4);
+      cursor: pointer;
+      transition: background .2s, transform .2s;
+      border: none;
+    }
+    .dot.active { background: white; transform: scale(1.4); }
+    .dot:focus { outline: 2px solid white; outline-offset: 3px; }
+
+    /* ── Misc ── */
+    .center { text-align: center; }
+    .flex-row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+    .chip {
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.25);
+      border-radius: 8px;
+      padding: .4em 1em;
+      font-size: .85rem;
+      font-weight: 600;
+    }
+    .divider { border: none; border-top: 1px solid rgba(255,255,255,.2); margin: 1rem 0; }
+    .big-num { font-size: 2.8rem; font-weight: 800; line-height: 1; }
+    .big-label { font-size: .8rem; opacity: .7; margin-top: .2rem; }
+
+    /* ── Responsive ── */
+    @media (max-width: 700px) {
+      .cards-2, .cards-3, .cards-4 { grid-template-columns: 1fr; }
+      .slide { padding: 24px 20px; }
+      h1 { font-size: 1.8rem; }
+      h2 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="slider" role="region" aria-label="Présentation HealthAI Coach" aria-live="polite">
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 1 — Couverture
+  ══════════════════════════════════════════════ -->
+  <section class="slide slide-cover active" aria-label="Slide 1 : Couverture" role="group">
+    <span class="slide-num" aria-hidden="true">1 / 10</span>
+    <div class="center">
+      <div style="font-size:4rem;margin-bottom:.5rem" aria-hidden="true">🌿</div>
+      <div class="label">MSPR TPRE501 — Bloc de Compétences 1</div>
+      <h1>HealthAI Coach</h1>
+      <p class="subtitle">Backend métier · Pipeline ETL · API REST · Tableau de bord interactif</p>
+      <hr class="divider" style="max-width:300px;margin:1.5rem auto" />
+      <div class="flex-row" style="justify-content:center">
+        <span class="chip">FastAPI</span>
+        <span class="chip">React</span>
+        <span class="chip">SQLite / SQLAlchemy</span>
+        <span class="chip">APScheduler</span>
+        <span class="chip">OpenAPI</span>
+      </div>
+      <p style="margin-top:2rem;opacity:.7;font-size:.9rem">
+        Programme CDA · EPSI · RNCP 37873 · Niveau 6
+      </p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 2 — Contexte & Problématique
+  ══════════════════════════════════════════════ -->
+  <section class="slide slide-context" aria-label="Slide 2 : Contexte" role="group">
+    <span class="slide-num" aria-hidden="true">2 / 10</span>
+    <h2>Contexte &amp; Problématique</h2>
+    <div class="cards cards-2" style="max-width:900px">
+      <div class="card">
+        <div class="icon" aria-hidden="true">🚀</div>
+        <h3>La startup</h3>
+        <p>HealthAI Coach est une startup française dans la santé connectée, proposant nutrition, sport et suivi biométrique via IA générative.</p>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">🎯</div>
+        <h3>La mission</h3>
+        <ul>
+          <li>Concevoir le backend métier complet</li>
+          <li>Collecter &amp; nettoyer des données hétérogènes</li>
+          <li>Exposer une API REST sécurisée</li>
+          <li>Livrer un tableau de bord interactif</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">💼</div>
+        <h3>Business model</h3>
+        <ul>
+          <li><strong>Freemium</strong> — Gratuit</li>
+          <li><strong>Premium</strong> — 9,99 €/mois (IA)</li>
+          <li><strong>Premium+</strong> — 19,99 €/mois (biométrie)</li>
+          <li><strong>B2B</strong> — Marque blanche</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">📊</div>
+        <h3>Marché</h3>
+        <p>Croissance +20 %/an · Concurrents : MyFitnessPal, Yazio, Fitbit Premium · Différenciation : IA générative + suivi holistique</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 3 — Architecture technique
+  ══════════════════════════════════════════════ -->
+  <section class="slide slide-archi" aria-label="Slide 3 : Architecture technique" role="group">
+    <span class="slide-num" aria-hidden="true">3 / 10</span>
+    <h2>Architecture Technique</h2>
+    <div class="cards cards-3" style="max-width:960px">
+      <div class="card">
+        <div class="icon" aria-hidden="true">⚙️</div>
+        <h3>Backend</h3>
+        <ul>
+          <li>FastAPI 0.115</li>
+          <li>SQLAlchemy 2.0 ORM</li>
+          <li>JWT + bcrypt</li>
+          <li>APScheduler ETL</li>
+          <li>13 routers / 50+ endpoints</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">🗄️</div>
+        <h3>Base de données</h3>
+        <ul>
+          <li>SQLite (prototype)</li>
+          <li>→ PostgreSQL (production)</li>
+          <li>8 tables relationnelles</li>
+          <li>Merise MCD/MLD/MPD</li>
+          <li>Scripts SQL versionés</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">🖥️</div>
+        <h3>Frontend</h3>
+        <ul>
+          <li>React 18 + TypeScript</li>
+          <li>Recharts (graphiques)</li>
+          <li>RGAA niveau AA</li>
+          <li>9 pages + 6 composants</li>
+          <li>Export CSV / JSON</li>
+        </ul>
+      </div>
+    </div>
+    <div style="margin-top:1.5rem;text-align:center;font-size:.85rem;opacity:.8">
+      <strong>Flux :</strong> Sources CSV/API → ETL (APScheduler) → SQLite → FastAPI REST → React Dashboard
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 4 — Sources de données
+  ══════════════════════════════════════════════ -->
+  <section class="slide slide-sources" aria-label="Slide 4 : Sources de données" role="group">
+    <span class="slide-num" aria-hidden="true">4 / 10</span>
+    <h2>Sources de Données &amp; Collecte</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Dataset</th>
+          <th>Format</th>
+          <th>Volume</th>
+          <th>Données</th>
+          <th>Justification</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Daily Food &amp; Nutrition</strong><br/><small>Kaggle</small></td>
+          <td><span class="pill">CSV</span></td>
+          <td>650 lignes</td>
+          <td>Valeurs nutritionnelles, tracking santé</td>
+          <td>Base alimentaire &amp; recommandations</td>
+        </tr>
+        <tr>
+          <td><strong>Diet Recommendations</strong><br/><small>Kaggle</small></td>
+          <td><span class="pill">CSV</span></td>
+          <td>1 000 lignes</td>
+          <td>Profils santé, besoins diététiques</td>
+          <td>Algorithme de recommandation IA</td>
+        </tr>
+        <tr>
+          <td><strong>Fitness Tracker</strong><br/><small>Kaggle</small></td>
+          <td><span class="pill">CSV</span></td>
+          <td>1 800 lignes</td>
+          <td>Steps, calories, minutes activité</td>
+          <td>Suivi d'activité quotidienne</td>
+        </tr>
+        <tr>
+          <td><strong>Gym Members Exercise</strong><br/><small>Kaggle</small></td>
+          <td><span class="pill">CSV</span></td>
+          <td>973 lignes</td>
+          <td>Âge, genre, poids, BPM, BMI</td>
+          <td>Profils utilisateurs biométriques</td>
+        </tr>
+        <tr>
+          <td><strong>ExerciseDB API</strong><br/><small>GitHub</small></td>
+          <td><span class="pill">REST/JSON</span></td>
+          <td>1 300+ exercices</td>
+          <td>Nom, muscle, équipement, niveau</td>
+          <td>Catalogue dynamique d'exercices</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin-top:1rem;font-size:.85rem;opacity:.8;text-align:center">
+      Minimum requis : 2 sources · Réalisé : 5 sources hétérogènes (CSV + REST API)
+    </p>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 5 — Pipeline ETL
+  ══════════════════════════════════════════════ -->
+  <section class="slide slide-etl" aria-label="Slide 5 : Pipeline ETL" role="group">
+    <span class="slide-num" aria-hidden="true">5 / 10</span>
+    <h2>Pipeline ETL — Automatisation &amp; Qualité</h2>
+    <div class="cards cards-2" style="max-width:900px">
+      <div class="card">
+        <div class="icon" aria-hidden="true">📥</div>
+        <h3>Ingestion automatisée</h3>
+        <ul>
+          <li>APScheduler — tâches Cron</li>
+          <li>sync_food_data → 00h30 quotidien</li>
+          <li>sync_fitness_data → 01h00 quotidien</li>
+          <li>data_quality_check → toutes les heures</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">🧹</div>
+        <h3>Nettoyage &amp; Validation</h3>
+        <ul>
+          <li>Suppression des doublons (email, ID)</li>
+          <li>Imputation des valeurs nulles (médiane)</li>
+          <li>Validation des plages (CHECK SQL)</li>
+          <li>Normalisation des formats (ISO dates)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">📊</div>
+        <h3>Gestion de la qualité</h3>
+        <ul>
+          <li>Table EtlRun — chaque exécution tracée</li>
+          <li>Table EtlError — anomalies enregistrées</li>
+          <li>Métriques : rows_in, rows_out, errors</li>
+          <li>Logs JSON structurés</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">✅</div>
+        <h3>Règles qualité appliquées</h3>
+        <div class="pbar-wrap">
+          <div class="pbar-label"><span>Complétude</span><span>≥ 95 %</span></div>
+          <div class="pbar-track" role="progressbar" aria-valuenow="95" aria-valuemin="0" aria-valuemax="100" aria-label="Complétude 95%"><div class="pbar-fill" style="width:95%"></div></div>
+        </div>
+        <div class="pbar-wrap">
+          <div class="pbar-label"><span>Unicité</span><span>0 doublon</span></div>
+          <div class="pbar-track" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" aria-label="Unicité 100%"><div class="pbar-fill" style="width:100%"></div></div>
+        </div>
+        <div class="pbar-wrap">
+          <div class="pbar-label"><span>Validité plages</span><span>≤ 1 % hors borne</span></div>
+          <div class="pbar-track" role="progressbar" aria-valuenow="99" aria-valuemin="0" aria-valuemax="100" aria-label="Validité 99%"><div class="pbar-fill" style="width:99%"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 6 — Base de données
+  ══════════════════════════════════════════════ -->
+  <section class="slide slide-bdd" aria-label="Slide 6 : Base de données" role="group">
+    <span class="slide-num" aria-hidden="true">6 / 10</span>
+    <h2>Base de Données Relationnelle</h2>
+    <div class="cards cards-2" style="max-width:900px">
+      <div class="card">
+        <div class="icon" aria-hidden="true">🗂️</div>
+        <h3>Modèle Merise (MCD → MLD → MPD)</h3>
+        <ul>
+          <li><strong>8 tables</strong> normalisées (3NF)</li>
+          <li>Utilisateur, Data, Nutrition, Daily_Data</li>
+          <li>Weekly_Data, Abonnement, Aliment, B2B</li>
+          <li>Clés étrangères + contraintes CHECK</li>
+          <li>Index de performance sur email, name</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">🔗</div>
+        <h3>Relations principales</h3>
+        <ul>
+          <li>Utilisateur → Data (1,1)</li>
+          <li>Utilisateur → Nutrition (1,1)</li>
+          <li>Utilisateur → Daily_Data (1,1)</li>
+          <li>Utilisateur → Weekly_Data (1,1)</li>
+          <li>Utilisateur → B2B (0,1) — optionnel</li>
+          <li>Nutrition → Aliment (1,N)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">📝</div>
+        <h3>Scripts SQL livrés</h3>
+        <ul>
+          <li>CREATE TABLE avec contraintes</li>
+          <li>CRUD Utilisateurs &amp; Nutrition</li>
+          <li>Vues consolidées (JOIN complets)</li>
+          <li>Alertes risques sanitaires</li>
+          <li>KPIs analytiques (Section 9)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">🔄</div>
+        <h3>Évolution production</h3>
+        <ul>
+          <li>SQLite → PostgreSQL (Alembic)</li>
+          <li>Multi-utilisateurs MVCC</li>
+          <li>Migrations versionnées</li>
+          <li>Docker-ready</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 7 — API REST
+  ══════════════════════════════════════════════ -->
+  <section class="slide slide-api" aria-label="Slide 7 : API REST" role="group">
+    <span class="slide-num" aria-hidden="true">7 / 10</span>
+    <h2>API REST — FastAPI &amp; OpenAPI</h2>
+    <div class="cards cards-3" style="max-width:960px">
+      <div class="card">
+        <div class="icon" aria-hidden="true">🔐</div>
+        <h3>Sécurité</h3>
+        <ul>
+          <li>JWT Bearer tokens (7j)</li>
+          <li>bcrypt password hashing</li>
+          <li>RBAC user / admin</li>
+          <li>CORS configuré</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">📡</div>
+        <h3>13 Routers — 50+ endpoints</h3>
+        <ul>
+          <li>/auth /users /nutrition</li>
+          <li>/activities /biometrics</li>
+          <li>/analytics /quality</li>
+          <li>/exercises /billing</li>
+          <li>/consultations /tenant</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">📖</div>
+        <h3>Documentation OpenAPI</h3>
+        <ul>
+          <li>Swagger UI : /docs</li>
+          <li>ReDoc : /redoc</li>
+          <li>Schémas Pydantic v2</li>
+          <li>Auto-généré &amp; maintenu</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">👤</div>
+        <h3>CRUD Utilisateurs</h3>
+        <ul>
+          <li>GET /users (admin)</li>
+          <li>GET /users/me</li>
+          <li>POST /users</li>
+          <li>PUT /users/{id}</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">📊</div>
+        <h3>Analytics</h3>
+        <ul>
+          <li>GET /analytics/summary</li>
+          <li>GET /analytics/trends/steps</li>
+          <li>GET /analytics/trends/calories-in</li>
+          <li>GET /analytics/today</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">📤</div>
+        <h3>Export</h3>
+        <ul>
+          <li>Format JSON natif</li>
+          <li>Export CSV via frontend</li>
+          <li>Données nettoyées</li>
+          <li>Prêt pour data scientists</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 8 — Frontend & Dashboard
+  ══════════════════════════════════════════════ -->
+  <section class="slide slide-frontend" aria-label="Slide 8 : Frontend et Dashboard" role="group">
+    <span class="slide-num" aria-hidden="true">8 / 10</span>
+    <h2>Frontend &amp; Tableau de Bord Interactif</h2>
+    <div class="cards cards-2" style="max-width:900px">
+      <div class="card">
+        <div class="icon" aria-hidden="true">📊</div>
+        <h3>Dashboard — KPIs &amp; Graphiques</h3>
+        <ul>
+          <li>Pas, calories IN/OUT, sommeil, eau</li>
+          <li>Tendances sur 7 jours (LineChart)</li>
+          <li>Qualité des données ETL (BarChart)</li>
+          <li>Export CSV &amp; JSON en un clic</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">♿</div>
+        <h3>RGAA Niveau AA — Accessibilité</h3>
+        <ul>
+          <li>lang="fr" + skip-link clavier</li>
+          <li>aria-label sur tous les éléments interactifs</li>
+          <li>aria-hidden sur icônes décoratives</li>
+          <li>role="progressbar" avec aria-valuenow</li>
+          <li>Navigation entièrement clavier</li>
+          <li>Contrastes &gt; 4.5:1 (AA)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">🖥️</div>
+        <h3>9 pages fonctionnelles</h3>
+        <ul>
+          <li>Dashboard · Journal quotidien</li>
+          <li>Exercices · Nutrition</li>
+          <li>Qualité ETL · Admin utilisateurs</li>
+          <li>Landing · Login · 404</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">🔧</div>
+        <h3>Interface d'administration</h3>
+        <ul>
+          <li>Dashboard qualité temps réel</li>
+          <li>Workflow validation données</li>
+          <li>Correction anomalies interactives</li>
+          <li>Monitoring ETL runs &amp; erreurs</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 9 — Démonstration & Déploiement
+  ══════════════════════════════════════════════ -->
+  <section class="slide slide-demo" aria-label="Slide 9 : Démo et déploiement" role="group">
+    <span class="slide-num" aria-hidden="true">9 / 10</span>
+    <h2>Démonstration &amp; Déploiement</h2>
+    <div class="cards cards-2" style="max-width:900px">
+      <div class="card">
+        <div class="icon" aria-hidden="true">▶️</div>
+        <h3>Lancement en 1 commande</h3>
+        <div style="background:rgba(0,0,0,.3);border-radius:8px;padding:12px;font-family:monospace;font-size:.85rem;margin-top:.5rem">
+          <span style="opacity:.6"># Windows</span><br/>
+          start_all.bat<br/>
+          <br/>
+          <span style="opacity:.6"># Backend : http://localhost:8010</span><br/>
+          <span style="opacity:.6"># Frontend : http://localhost:5173</span><br/>
+          <span style="opacity:.6"># API Docs : http://localhost:8010/docs</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">👥</div>
+        <h3>Comptes de démo</h3>
+        <table style="font-size:.8rem">
+          <thead><tr><th>Email</th><th>Plan</th><th>Rôle</th></tr></thead>
+          <tbody>
+            <tr><td>admin@demo.fr</td><td>B2B</td><td>Admin</td></tr>
+            <tr><td>user@demo.fr</td><td>Freemium</td><td>User</td></tr>
+            <tr><td>premium@demo.fr</td><td>Premium</td><td>User</td></tr>
+            <tr><td>plus@demo.fr</td><td>Premium+</td><td>User</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:.5rem;font-size:.8rem;opacity:.7">Mot de passe : <strong>Demo123!</strong></p>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">📦</div>
+        <h3>Livrables remis</h3>
+        <ul>
+          <li>Code source complet (GitHub)</li>
+          <li>Pipeline ETL opérationnel</li>
+          <li>Base de données + scripts SQL</li>
+          <li>API REST documentée (OpenAPI)</li>
+          <li>Interface web RGAA AA</li>
+          <li>Rapport technique + Guide déploiement</li>
+          <li>Diagramme des flux + MCD/MLD/MPD</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="icon" aria-hidden="true">🔮</div>
+        <h3>Perspectives d'évolution</h3>
+        <ul>
+          <li>Migration PostgreSQL + Alembic</li>
+          <li>Dockerisation complète</li>
+          <li>Modules IA (recommandations LLM)</li>
+          <li>App mobile iOS / Android</li>
+          <li>Intégration objets connectés</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 10 — Bilan & Compétences
+  ══════════════════════════════════════════════ -->
+  <section class="slide slide-bilan" aria-label="Slide 10 : Bilan et compétences" role="group">
+    <span class="slide-num" aria-hidden="true">10 / 10</span>
+    <h2>Bilan &amp; Compétences Démontrées</h2>
+    <div class="cards cards-4" style="max-width:960px;margin-bottom:1.5rem">
+      <div class="card card-dark center">
+        <div class="big-num">5</div>
+        <div class="big-label">Sources de données</div>
+      </div>
+      <div class="card card-dark center">
+        <div class="big-num">50+</div>
+        <div class="big-label">Endpoints API</div>
+      </div>
+      <div class="card card-dark center">
+        <div class="big-num">8</div>
+        <div class="big-label">Tables relationnelles</div>
+      </div>
+      <div class="card card-dark center">
+        <div class="big-num">9</div>
+        <div class="big-label">Pages frontend</div>
+      </div>
+    </div>
+    <div style="max-width:900px;width:100%">
+      <table>
+        <thead>
+          <tr><th>Compétence évaluée (Bloc 1)</th><th>Réalisé</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Installer &amp; configurer l'environnement</td><td>✅ Python venv, Node, Vite, scripts bat</td></tr>
+          <tr><td>Développer des interfaces utilisateur</td><td>✅ React 18 + TypeScript, 9 pages</td></tr>
+          <tr><td>Développer des composants métiers</td><td>✅ 13 routers FastAPI, 13 modèles ORM</td></tr>
+          <tr><td>Définir les sources &amp; outils de collecte</td><td>✅ 5 sources documentées (Kaggle + API)</td></tr>
+          <tr><td>Recueillir de manière sécurisée</td><td>✅ JWT, HTTPS-ready, validation Pydantic</td></tr>
+          <tr><td>Importer les données automatiquement</td><td>✅ APScheduler Cron + seed.py</td></tr>
+          <tr><td>Analyser, nettoyer, assurer la qualité</td><td>✅ EtlRun/EtlError + dashboard qualité</td></tr>
+          <tr><td>Construire la structure de stockage</td><td>✅ Merise MCD/MLD/MPD + SQL complet</td></tr>
+          <tr><td>Tableaux de bord accessibles (RGAA AA)</td><td>✅ aria-*, skip-link, contrastes, clavier</td></tr>
+          <tr><td>Exploiter &amp; analyser automatiquement</td><td>✅ /analytics/* + export CSV/JSON</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div><!-- #slider -->
+
+<!-- ── Navigation ── -->
+<nav id="controls" aria-label="Navigation entre les slides">
+  <button id="btn-prev" aria-label="Slide précédente" disabled>◀ Préc.</button>
+  <span id="page-indicator" aria-live="polite" aria-atomic="true">1 / 10</span>
+  <button id="btn-next" aria-label="Slide suivante">Suiv. ▶</button>
+</nav>
+
+<!-- ── Dots ── -->
+<div id="dots" role="tablist" aria-label="Navigation par point">
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const btnPrev = document.getElementById('btn-prev');
+  const btnNext = document.getElementById('btn-next');
+  const indicator = document.getElementById('page-indicator');
+  const dotsContainer = document.getElementById('dots');
+  let current = 0;
+
+  // Create dots
+  slides.forEach((_, i) => {
+    const dot = document.createElement('button');
+    dot.className = 'dot' + (i === 0 ? ' active' : '');
+    dot.setAttribute('role', 'tab');
+    dot.setAttribute('aria-label', `Aller à la slide ${i + 1}`);
+    dot.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
+    dot.addEventListener('click', () => goTo(i));
+    dotsContainer.appendChild(dot);
+  });
+
+  function goTo(idx) {
+    slides[current].classList.remove('active');
+    slides[current].classList.add('prev');
+    dotsContainer.children[current].classList.remove('active');
+    dotsContainer.children[current].setAttribute('aria-selected', 'false');
+
+    current = idx;
+
+    slides.forEach((s, i) => {
+      if (i !== current) { s.classList.remove('active', 'prev'); }
+    });
+
+    slides[current].classList.remove('prev');
+    slides[current].classList.add('active');
+    dotsContainer.children[current].classList.add('active');
+    dotsContainer.children[current].setAttribute('aria-selected', 'true');
+
+    indicator.textContent = `${current + 1} / ${slides.length}`;
+    btnPrev.disabled = current === 0;
+    btnNext.disabled = current === slides.length - 1;
+
+    // Focus the active slide for screen readers
+    slides[current].setAttribute('tabindex', '-1');
+    slides[current].focus({ preventScroll: true });
+  }
+
+  btnPrev.addEventListener('click', () => { if (current > 0) goTo(current - 1); });
+  btnNext.addEventListener('click', () => { if (current < slides.length - 1) goTo(current + 1); });
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (current < slides.length - 1) goTo(current + 1);
+    }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (current > 0) goTo(current - 1);
+    }
+    if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+    if (e.key === 'End')  { e.preventDefault(); goTo(slides.length - 1); }
+  });
+
+  // Init
+  btnPrev.disabled = true;
+</script>
+</body>
+</html>

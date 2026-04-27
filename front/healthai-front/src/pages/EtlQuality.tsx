@@ -84,8 +84,16 @@ export default function EtlQuality() {
               </thead>
               <tbody>
                 {runs.map((r) => (
-                  <tr key={r.id} style={{ cursor: "pointer", background: selectedRun === r.id ? "var(--primary-light)" : undefined }}
-                    onClick={() => setSelectedRun(r.id)}>
+                  <tr
+                    key={r.id}
+                    style={{ cursor: "pointer", background: selectedRun === r.id ? "var(--primary-light)" : undefined }}
+                    onClick={() => setSelectedRun(r.id)}
+                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setSelectedRun(r.id)}
+                    tabIndex={0}
+                    role="button"
+                    aria-pressed={selectedRun === r.id ? true : false}
+                    aria-label={`ETL run #${r.id} — ${r.source_name} — statut ${r.status}`}
+                  >
                     <td><strong style={{ color: "var(--primary)" }}>#{r.id}</strong></td>
                     <td>{r.source_name}</td>
                     <td>{statusBadge(r.status)}</td>
