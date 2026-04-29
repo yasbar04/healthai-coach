@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from sqlalchemy import func, text as sa_text
 from sqlalchemy.orm import Session
 from datetime import date, timedelta
 
@@ -109,6 +110,77 @@ def trend_cal_out(
         pts.append(TrendPoint(date=d.isoformat(), value=float(a.calories_out or 0) if a else 0.0))
         d = d + timedelta(days=1)
     return TrendOut(points=pts)
+
+
+_PLAN_LABELS = {
+    "freemium":     "Maintien forme",
+    "premium":      "Perte de poids",
+    "premium_plus": "Performance avancée",
+    "b2b":          "Partenaire B2B",
+}
+
+
+@router.get("/dashboard/users-by-goal")
+def users_by_goal(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs.")
+    rows = db.query(User.plan, func.count(User.id).label("cnt")).group_by(User.plan).all()
+    return {"items": [{"goal_label": _PLAN_LABELS.get(r.plan, r.plan), "users_count": r.cnt} for r in rows]}
+
+
+@router.get("/dashboard/users-by-age")
+def users_by_age(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs.")
+    rows = db.execute(sa_text(
+        "SELECT strftime('%Y-%m', created_at) AS bucket, COUNT(*) AS cnt "
+        "FROM users GROUP BY bucket ORDER BY bucket"
+    )).fetchall()
+    return {"items": [{"age_bucket": r[0] or "Inconnu", "users_count": r[1]} for r in rows]}
+
+
+@router.get("/dashboard/activities-by-type")
+def activities_by_type(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs.")
+    rows = (
+        db.query(Activity.workout_type, func.count(Activity.id).label("cnt"))
+        .filter(Activity.workout_type.isnot(None))
+        .group_by(Activity.workout_type)
+        .order_by(func.count(Activity.id).desc())
+        .limit(12)
+        .all()
+    )
+    return {"items": [{"body_part": r.workout_type, "exercises_count": r.cnt} for r in rows]}
+
+
+@router.get("/dashboard/foods-top")
+def foods_top(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    rows = (
+        db.query(Food)
+        .filter(Food.calories_kcal.isnot(None))
+        .order_by(Food.calories_kcal.desc())
+        .limit(20)
+        .all()
+    )
+    return {"items": [{"name": f.name, "category": f.category or "—", "kcal_per_100g": f.calories_kcal} for f in rows]}
+
+
+@router.get("/dashboard/kpis")
+def business_kpis(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs.")
+    total   = db.query(func.count(User.id)).scalar() or 0
+    premium = db.query(func.count(User.id)).filter(User.plan != "freemium").scalar() or 0
+    cutoff  = date.today() - timedelta(days=30)
+    active  = db.query(Activity.user_id.distinct()).filter(Activity.activity_date >= cutoff).count()
+    return {
+        "total_users":      total,
+        "premium_users":    premium,
+        "conversion_rate":  round(premium / total * 100, 1) if total else 0.0,
+        "active_users_30d": active,
+        "engagement_rate":  round(active  / total * 100, 1) if total else 0.0,
+    }
 
 
 @router.get("/today")

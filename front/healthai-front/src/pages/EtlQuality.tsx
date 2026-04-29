@@ -1,39 +1,54 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../api/client";
-import Card from "../components/Card";
 import Loading from "../components/Loading";
 import ErrorBanner from "../components/ErrorBanner";
 
-type Run = { id: number; source_name: string; status: string; started_at: string; ended_at?: string; rows_in: number; rows_out: number; errors_count: number };
-type Err = { id: number; severity: string; row_reference?: string; message: string; created_at: string };
+type Run  = { id: number; source_name: string; status: string; started_at: string; ended_at?: string; rows_in: number; rows_out: number; errors_count: number };
+type Err  = { id: number; severity: string; row_reference?: string; message: string; created_at: string };
+type Stats = { total_runs: number; success_count: number; failed_count: number; success_rate: number; total_rows_processed: number; total_errors: number };
+
+function statusBadge(s: string) {
+  if (s === "success") return <span className="badge badge-success">Succès</span>;
+  if (s === "partial")  return <span className="badge badge-warn">Partiel</span>;
+  return <span className="badge badge-danger">Échec</span>;
+}
+
+function sevBadge(s: string) {
+  if (s === "error") return <span className="badge badge-danger">erreur</span>;
+  if (s === "warn")  return <span className="badge badge-warn">alerte</span>;
+  return <span className="badge badge-info">{s}</span>;
+}
 
 export default function EtlQuality() {
-  const [runs, setRuns] = useState<Run[]>([]);
+  const [runs, setRuns]               = useState<Run[]>([]);
   const [selectedRun, setSelectedRun] = useState<number | null>(null);
-  const [errors, setErrors] = useState<Err[]>([]);
-
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
+  const [errors, setErrors]           = useState<Err[]>([]);
+  const [stats, setStats]             = useState<Stats | null>(null);
+  const [loading, setLoading]         = useState(true);
+  const [err, setErr]                 = useState<string | null>(null);
 
   async function load() {
     setLoading(true); setErr(null);
     try {
-      const r = await api.get("/quality/etl-runs");
-      const items = r.data?.items ?? r.data;
+      const [runsRes, statsRes] = await Promise.all([
+        api.get("/quality/etl-runs"),
+        api.get("/quality/etl-stats").catch(() => ({ data: null })),
+      ]);
+      const items: Run[] = runsRes.data?.items ?? runsRes.data ?? [];
       setRuns(items);
-      if (items?.length && selectedRun == null) setSelectedRun(items[0].id);
+      setStats(statsRes.data);
+      if (items.length && selectedRun == null) setSelectedRun(items[0].id);
     } catch (e: any) {
-      setErr(e?.response?.data?.detail || "Impossible de charger qualité ETL.");
+      setErr(e?.response?.data?.detail || "Impossible de charger la qualité ETL.");
     } finally {
       setLoading(false);
     }
   }
 
   async function loadErrors(runId: number) {
-    setErr(null);
     try {
-      const e = await api.get(`/quality/etl-runs/${runId}/errors`);
-      setErrors(e.data?.items ?? e.data);
+      const res = await api.get(`/quality/etl-runs/${runId}/errors`);
+      setErrors(res.data?.items ?? res.data ?? []);
     } catch (e: any) {
       setErr(e?.response?.data?.detail || "Impossible de charger les erreurs ETL.");
     }
@@ -42,103 +57,169 @@ export default function EtlQuality() {
   useEffect(() => { load(); }, []);
   useEffect(() => { if (selectedRun != null) loadErrors(selectedRun); }, [selectedRun]);
 
-  const statusBadge = (s: string) => {
-    if (s === "success") return <span className="badge badge-success">✅ {s}</span>;
-    if (s === "partial")  return <span className="badge badge-warn">⚠️ {s}</span>;
-    return <span className="badge badge-danger">❌ {s}</span>;
-  };
+  if (loading) return <Loading label="Chargement qualité ETL…" />;
 
-  const sevBadge = (s: string) => {
-    if (s === "error") return <span className="badge badge-danger">{s}</span>;
-    if (s === "warn")  return <span className="badge badge-warn">{s}</span>;
-    return <span className="badge badge-info">{s}</span>;
-  };
-
-  if (loading) return <Loading label="Chargement qualité ETL..." />;
+  const selectedRunData = runs.find((r) => r.id === selectedRun);
 
   return (
-    <div style={{ display: "grid", gap: 20 }}>
+    <div className="etl-page">
+
+      {/* En-tête */}
       <div className="page-header">
         <div className="page-header-icon" aria-hidden="true">⚙️</div>
         <div>
           <h1>Qualité ETL</h1>
-          <p style={{ margin: 0, fontSize: "0.88rem", color: "var(--text-muted)" }}>Monitoring des pipelines de collecte et de nettoyage des données</p>
+          <p className="page-subtitle">Monitoring des pipelines de collecte et de nettoyage des données</p>
         </div>
       </div>
 
       {err && <ErrorBanner message={err} />}
 
-      <div className="grid grid-2">
-        <Card title="ETL runs" icon="📂">
-          <div className="table-wrap" style={{ boxShadow: "none", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>
-            <table className="table" aria-label="Table ETL runs">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Source</th>
-                  <th>Statut</th>
-                  <th>In</th>
-                  <th>Out</th>
-                  <th>Err.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {runs.map((r) => (
-                  <tr
-                    key={r.id}
-                    style={{ cursor: "pointer", background: selectedRun === r.id ? "var(--primary-light)" : undefined }}
-                    onClick={() => setSelectedRun(r.id)}
-                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setSelectedRun(r.id)}
-                    tabIndex={0}
-                    role="button"
-                    aria-pressed={selectedRun === r.id ? true : false}
-                    aria-label={`ETL run #${r.id} — ${r.source_name} — statut ${r.status}`}
-                  >
-                    <td><strong style={{ color: "var(--primary)" }}>#{r.id}</strong></td>
-                    <td>{r.source_name}</td>
-                    <td>{statusBadge(r.status)}</td>
-                    <td>{r.rows_in.toLocaleString()}</td>
-                    <td>{r.rows_out.toLocaleString()}</td>
-                    <td>
-                      {r.errors_count > 0
-                        ? <span style={{ color: "var(--danger)", fontWeight: 600 }}>{r.errors_count}</span>
-                        : <span style={{ color: "var(--primary)" }}>0</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Statistiques globales */}
+      {stats && (
+        <section aria-labelledby="etl-stats-heading">
+          <h2 id="etl-stats-heading" className="section-heading">Vue d'ensemble — 7 derniers jours</h2>
+          <div className="etl-stats-row">
+            {[
+              { icon: "🔄", label: "Exécutions",       val: stats.total_runs,                                  cls: ""            },
+              { icon: "✅", label: "Succès",            val: stats.success_count,                               cls: stats.success_count > 0 ? "text-success" : "" },
+              { icon: "❌", label: "Échecs",            val: stats.failed_count,                                cls: stats.failed_count  > 0 ? "text-danger"  : "" },
+              { icon: "📊", label: "Taux de succès",   val: `${stats.success_rate.toFixed(0)} %`,              cls: stats.success_rate >= 95 ? "text-success" : stats.success_rate >= 80 ? "text-warn" : "text-danger" },
+              { icon: "📦", label: "Lignes traitées",  val: stats.total_rows_processed.toLocaleString("fr-FR"), cls: ""            },
+              { icon: "⚠️", label: "Erreurs totales",  val: stats.total_errors,                                cls: stats.total_errors > 0 ? "text-warn" : "text-success" },
+            ].map(({ icon, label, val, cls }) => (
+              <div key={label} className="etl-stat-card">
+                <div className="etl-stat-icon" aria-hidden="true">{icon}</div>
+                <div className="etl-stat-label">{label}</div>
+                <div className={`etl-stat-value ${cls}`}>{val}</div>
+              </div>
+            ))}
           </div>
-          <p className="small" style={{ marginTop: 10 }}>Clique sur une ligne pour voir les erreurs associées.</p>
-        </Card>
+        </section>
+      )}
 
-        <Card title={`Erreurs — run #${selectedRun ?? "?"}`} icon="🔍">
-          <div className="table-wrap" style={{ boxShadow: "none", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>
-            <table className="table" aria-label="Table erreurs ETL">
-              <thead>
-                <tr>
-                  <th>Sév.</th>
-                  <th>Réf.</th>
-                  <th>Message</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {errors.length === 0 ? (
-                  <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--text-light)", padding: "28px" }}>✅ Aucune erreur</td></tr>
-                ) : errors.map((e) => (
-                  <tr key={e.id}>
-                    <td>{sevBadge(e.severity)}</td>
-                    <td style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{e.row_reference ?? "-"}</td>
-                    <td>{e.message}</td>
-                    <td style={{ fontSize: "0.8rem", whiteSpace: "nowrap", color: "var(--text-light)" }}>{e.created_at.slice(0, 19).replace("T", " ")}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Détail runs + erreurs */}
+      <section aria-labelledby="etl-detail-heading">
+        <h2 id="etl-detail-heading" className="section-heading">Détail des exécutions</h2>
+        <div className="etl-panels">
+
+          {/* Panel gauche : liste des runs */}
+          <div className="etl-panel">
+            <div className="etl-panel-header">
+              <h3 className="etl-panel-title">
+                <span aria-hidden="true">📂</span> Historique des runs
+              </h3>
+              <p className="etl-panel-subtitle">
+                {runs.length} exécution{runs.length !== 1 ? "s" : ""} enregistrée{runs.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+
+            {runs.length === 0 ? (
+              <p className="etl-empty">Aucune exécution ETL enregistrée.</p>
+            ) : (
+              <>
+                <div
+                  className="table-scroll"
+                  tabIndex={0}
+                  role="region"
+                  aria-label="Liste des exécutions ETL — défilable au clavier"
+                >
+                  <table className="table" aria-label="Historique des exécutions ETL">
+                    <thead>
+                      <tr>
+                        <th scope="col">#</th>
+                        <th scope="col">Source</th>
+                        <th scope="col">Statut</th>
+                        <th scope="col">Lignes in</th>
+                        <th scope="col">Lignes out</th>
+                        <th scope="col">Erreurs</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {runs.map((r) => (
+                        <tr
+                          key={r.id}
+                          className={`etl-run-row${selectedRun === r.id ? " etl-run-row--selected" : ""}`}
+                          onClick={() => setSelectedRun(r.id)}
+                          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setSelectedRun(r.id)}
+                          tabIndex={0}
+                          role="button"
+                          aria-pressed={selectedRun === r.id}
+                          aria-label={`Run #${r.id} — ${r.source_name} — statut ${r.status}`}
+                        >
+                          <td><strong>#{r.id}</strong></td>
+                          <td>{r.source_name}</td>
+                          <td>{statusBadge(r.status)}</td>
+                          <td>{r.rows_in.toLocaleString("fr-FR")}</td>
+                          <td>{r.rows_out.toLocaleString("fr-FR")}</td>
+                          <td>
+                            <span className={r.errors_count > 0 ? "badge badge-danger" : "badge badge-success"}>
+                              {r.errors_count}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="etl-hint">Sélectionnez une ligne pour afficher les erreurs associées.</p>
+              </>
+            )}
           </div>
-        </Card>
-      </div>
+
+          {/* Panel droit : erreurs du run sélectionné */}
+          <div className="etl-panel">
+            <div className="etl-panel-header">
+              <h3 className="etl-panel-title">
+                <span aria-hidden="true">🔍</span> Erreurs
+                {selectedRunData && <> — run #{selectedRunData.id}</>}
+              </h3>
+              <p className="etl-panel-subtitle">
+                {selectedRunData
+                  ? `${selectedRunData.source_name} · ${new Date(selectedRunData.started_at).toLocaleString("fr-FR")}`
+                  : "Sélectionnez un run dans la liste de gauche"}
+              </p>
+            </div>
+
+            {selectedRun == null ? (
+              <p className="etl-empty">Aucun run sélectionné.</p>
+            ) : errors.length === 0 ? (
+              <p className="etl-empty">✅ Aucune erreur pour ce run.</p>
+            ) : (
+              <div
+                className="table-scroll"
+                tabIndex={0}
+                role="region"
+                aria-label="Erreurs de l'exécution ETL sélectionnée — défilable au clavier"
+              >
+                <table className="table" aria-label={`Erreurs du run #${selectedRun}`}>
+                  <thead>
+                    <tr>
+                      <th scope="col">Sévérité</th>
+                      <th scope="col">Réf. ligne</th>
+                      <th scope="col">Message</th>
+                      <th scope="col">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {errors.map((e) => (
+                      <tr key={e.id}>
+                        <td>{sevBadge(e.severity)}</td>
+                        <td className="small">{e.row_reference ?? "—"}</td>
+                        <td>{e.message}</td>
+                        <td className="small nowrap">
+                          {e.created_at.slice(0, 19).replace("T", " ")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+        </div>
+      </section>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import Nutrition from "./pages/Nutrition";
 import EtlQuality from "./pages/EtlQuality";
 import Users from "./pages/Users";
 import DailyLog from "./pages/DailyLog";
+import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/daily-log" element={<DailyLog />} />
         <Route path="/activities" element={<Activities />} />
         <Route path="/nutrition" element={<Nutrition />} />
+        <Route path="/analytics" element={<Analytics />} />
         <Route path="/users" element={<AdminRoute><Users /></AdminRoute>} />
         <Route path="/etl" element={<AdminRoute><EtlQuality /></AdminRoute>} />
       </Route>

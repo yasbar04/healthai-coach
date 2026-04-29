@@ -26,13 +26,12 @@ export default function Layout() {
 
           <div className="header-user">
             {user?.email && (
-              <div className="user-badge" aria-label={`Connecté en tant que ${user.email}`}>
-                <div className="avatar" aria-hidden="true">{initials}</div>
-                <span className="user-email">{user.email}</span>
+              <div className="avatar-only" aria-label={`Connecté en tant que ${user.email}`} title={user.email}>
+                {initials}
               </div>
             )}
             <button className="btn-logout" onClick={logout} aria-label="Se déconnecter">
-              Déconnexion
+              ↪️
             </button>
           </div>
         </div>
