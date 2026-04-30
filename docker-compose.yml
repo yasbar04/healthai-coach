@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # ═══════════════════════════════════════════════════════════════
+  # Backend API — FastAPI + SQLite
+  # ═══════════════════════════════════════════════════════════════
+  backend:
+    build:
+      context: ./backend/healthai-backend
+      dockerfile: Dockerfile
+    container_name: healthai-backend
+    ports:
+      - "8010:8010"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - APP_NAME=HealthAI API
+      - DATABASE_URL=sqlite:///./healthai.db
+    volumes:
+      - ./backend/healthai-backend:/app
+      - healthai_db:/app
+    networks:
+      - healthai-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8010/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════
+  # Frontend Application — React + Vite
+  # ═══════════════════════════════════════════════════════════════
+  frontend:
+    build:
+      context: ./front/healthai-front
+      dockerfile: Dockerfile
+    container_name: healthai-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8010
+    volumes:
+      - ./front/healthai-front:/app
+      - /app/node_modules
+    networks:
+      - healthai-network
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5173"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+# ═══════════════════════════════════════════════════════════════
+# Networks
+# ═══════════════════════════════════════════════════════════════
+networks:
+  healthai-network:
+    driver: bridge
+
+# ═══════════════════════════════════════════════════════════════
+# Volumes (persistent storage for database)
+# ═══════════════════════════════════════════════════════════════
+volumes:
+  healthai_db:
+    driver: local
