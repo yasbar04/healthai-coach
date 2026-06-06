@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3.9'
 
 services:
   # ═══════════════════════════════════════════════════════════════
@@ -15,17 +15,48 @@ services:
       - PYTHONUNBUFFERED=1
       - APP_NAME=HealthAI API
       - DATABASE_URL=sqlite:///./healthai.db
+      - REDIS_URL=redis://redis:6379/0
+      - RECOMMENDATION_SERVICE_URL=http://recommendation-service:8001
     volumes:
       - ./backend/healthai-backend:/app
       - healthai_db:/app
     networks:
       - healthai-network
+    depends_on:
+      - redis
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8010/docs"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════
+  # Recommendation Microservice — FastAPI + MongoDB
+  # ═══════════════════════════════════════════════════════════════
+  recommendation-service:
+    build:
+      context: ./recommendation-service
+      dockerfile: Dockerfile
+    container_name: healthai-recommendations
+    ports:
+      - "8001:8001"
+    environment:
+      - MONGODB_URL=mongodb://mongo:27017
+      - MONGODB_DB=healthai_recommendations
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - MAIN_API_URL=http://backend:8010
+      - ENVIRONMENT=production
+    networks:
+      - healthai-network
+    depends_on:
+      - mongo
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════
@@ -40,6 +71,7 @@ services:
       - "5173:5173"
     environment:
       - VITE_API_URL=http://localhost:8010
+      - VITE_REC_SERVICE_URL=http://localhost:8001/api/v1
     volumes:
       - ./front/healthai-front:/app
       - /app/node_modules
@@ -47,6 +79,7 @@ services:
       - healthai-network
     depends_on:
       - backend
+      - recommendation-service
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5173"]
       interval: 30s
@@ -55,16 +88,39 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-# ═══════════════════════════════════════════════════════════════
-# Networks
-# ═══════════════════════════════════════════════════════════════
+  # ═══════════════════════════════════════════════════════════════
+  # Redis — Cache
+  # ═══════════════════════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    container_name: healthai-redis
+    volumes:
+      - redis_data:/data
+    networks:
+      - healthai-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # ═══════════════════════════════════════════════════════════════
+  # MongoDB — Recommendations storage
+  # ═══════════════════════════════════════════════════════════════
+  mongo:
+    image: mongo:7
+    container_name: healthai-mongo
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - healthai-network
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_DATABASE=healthai_recommendations
+
 networks:
   healthai-network:
     driver: bridge
 
-# ═══════════════════════════════════════════════════════════════
-# Volumes (persistent storage for database)
-# ═══════════════════════════════════════════════════════════════
 volumes:
   healthai_db:
     driver: local
+  redis_data:
+  mongo_data:

@@ -1,5 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
 from .settings import settings
@@ -8,6 +12,7 @@ from .seed import seed_if_empty, seed_bdd_if_empty, seed_exercises_cache, seed_f
 from .etl_scheduler import etl_scheduler, setup_etl_jobs
 
 from .routers import auth, users, billing, activities, nutrition, analytics, quality, ai, biometrics, consultations, tenant, bdd, exercises_ext
+from .routers import ml as ml_router
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -28,7 +33,12 @@ with engine.connect() as _conn:
         except Exception:
             pass  # column already exists
 
+# Rate limiter — 60 requests/minute by default per IP
+limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
+
 app = FastAPI(title="HealthAI Coach API", version="1.0.0")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS must be added before routes
 app.add_middleware(
@@ -63,6 +73,7 @@ app.include_router(consultations.router, tags=["consultations"])
 app.include_router(tenant.router, prefix="/tenant", tags=["tenant"])
 app.include_router(bdd.router)
 app.include_router(exercises_ext.router)
+app.include_router(ml_router.router, tags=["ml"])
 
 
 @app.get("/")

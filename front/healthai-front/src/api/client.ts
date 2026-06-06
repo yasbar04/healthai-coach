@@ -4,7 +4,7 @@ const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export const api = axios.create({
   baseURL,
-  timeout: 15000
+  timeout: 120000,
 });
 
 // Utility to extract error message
@@ -37,9 +37,20 @@ api.interceptors.response.use(
   (err: AxiosError) => {
     if (err?.response?.status === 401) {
       localStorage.removeItem("healthai_token");
-      // Could trigger a logout event here
       window.dispatchEvent(new Event("unauthorized"));
     }
     return Promise.reject(err);
   }
 );
+
+// Client dédié au microservice de recommandations
+export const recClient = axios.create({
+  baseURL: import.meta.env.VITE_REC_SERVICE_URL || "http://localhost:8001/api/v1",
+  timeout: 30000,
+});
+
+recClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem("healthai_token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});

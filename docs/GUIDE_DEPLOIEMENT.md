@@ -57,7 +57,7 @@ npm --version            # Should return 8+
 #### Étape 2 : Cloner le projet
 
 ```powershell
-git clone <repository-url> healthai-coach
+git clone https://github.com/yasbar04/healthai-coach  
 cd healthai-coach
 ```
 
@@ -547,6 +547,6 @@ Pour toute question / problème de déploiement :
 
 ---
 
-**Dernière mise à jour** : [DATE]  
+**Dernière mise à jour** : 30/04//2026  
 **Version** : 1.0.0  
-**Support** : [CONTACT EMAIL]
+**Support** : contact@epsi.fr

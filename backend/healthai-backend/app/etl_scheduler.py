@@ -5,15 +5,17 @@ Gestion des pipelines ETL avec logs structurés et monitoring
 
 import logging
 import json
+import os
 from datetime import datetime, timedelta
 from typing import Callable, Dict, Any
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 
 from .db import SessionLocal
 from .models import EtlRun, EtlError
 from .settings import settings
+
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 # Configuration logging structuré
 logging.basicConfig(level=logging.INFO)
@@ -103,7 +105,8 @@ class ETLScheduler:
                         run_id=run.id,
                         severity="critical",
                         row_reference="",
-                        message=str(e)
+                        message=str(e),
+                        created_at=datetime.utcnow()
                     )
                     db.add(error)
                     db.commit()
@@ -151,35 +154,44 @@ def sync_food_data(db: Session, run: EtlRun) -> None:
     try:
         import pandas as pd
         from .models import Food
-        
-        # Simuler read CSV
-        df = pd.read_csv("app/data/daily_food_nutrition.csv")
+
+        df = pd.read_csv(os.path.join(DATA_DIR, "daily_food_nutrition.csv"), on_bad_lines='skip')
         run.rows_in = len(df)
-        
-        # Nettoyage
-        df = df.dropna(subset=['name'])
-        df['calories_kcal'] = pd.to_numeric(df['calories_kcal'], errors='coerce')
-        
-        # Insertion
+
+        df = df.dropna(subset=['Food_Item'])
+        df['Calories (kcal)'] = pd.to_numeric(df['Calories (kcal)'], errors='coerce')
+
+        inserted = 0
+        skipped = 0
         for _, row in df.iterrows():
-            food = db.query(Food).filter(Food.name == row['name']).first()
-            if not food:
-                food = Food(
-                    name=row['name'],
-                    category=row.get('category'),
-                    calories_kcal=int(row['calories_kcal']) if pd.notna(row['calories_kcal']) else None,
-                    protein_g=float(row.get('protein_g', 0)) if pd.notna(row.get('protein_g')) else None,
-                    carbs_g=float(row.get('carbs_g', 0)) if pd.notna(row.get('carbs_g')) else None,
-                    fat_g=float(row.get('fat_g', 0)) if pd.notna(row.get('fat_g')) else None,
-                )
-                db.add(food)
-        
+            name = str(row['Food_Item']).strip()
+            if not name:
+                skipped += 1
+                continue
+            existing = db.query(Food).filter(Food.name == name).first()
+            if not existing:
+                db.add(Food(
+                    name=name,
+                    category=row.get('Category') if pd.notna(row.get('Category')) else None,
+                    calories_kcal=int(row['Calories (kcal)']) if pd.notna(row['Calories (kcal)']) else None,
+                    protein_g=float(row['Protein (g)']) if pd.notna(row.get('Protein (g)')) else None,
+                    carbs_g=float(row['Carbohydrates (g)']) if pd.notna(row.get('Carbohydrates (g)')) else None,
+                    fat_g=float(row['Fat (g)']) if pd.notna(row.get('Fat (g)')) else None,
+                    fiber_g=float(row['Fiber (g)']) if pd.notna(row.get('Fiber (g)')) else None,
+                    sugars_g=float(row['Sugars (g)']) if pd.notna(row.get('Sugars (g)')) else None,
+                    sodium_mg=float(row['Sodium (mg)']) if pd.notna(row.get('Sodium (mg)')) else None,
+                    cholesterol_mg=float(row['Cholesterol (mg)']) if pd.notna(row.get('Cholesterol (mg)')) else None,
+                    meal_type=row.get('Meal_Type') if pd.notna(row.get('Meal_Type')) else None,
+                    water_intake_ml=int(row['Water_Intake (ml)']) if pd.notna(row.get('Water_Intake (ml)')) else None,
+                ))
+                inserted += 1
+
         db.commit()
-        run.rows_out = len(df)
-        run.errors_count = len(df) - run.rows_out
-        
-        logger.info(f"✅ Food data synced: {run.rows_out} rows")
-        
+        run.rows_out = inserted
+        run.errors_count = skipped
+
+        logger.info(f"✅ Food data synced: {inserted} inserted, {skipped} skipped")
+
     except Exception as e:
         run.errors_count += 1
         logger.error(f"Food sync error: {e}")
@@ -190,26 +202,48 @@ def sync_fitness_data(db: Session, run: EtlRun) -> None:
     """Synchroniser les données fitness (quotidien)"""
     try:
         import pandas as pd
-        from .models import Activity
-        
-        # Simuler read CSV
-        df = pd.read_csv("app/data/fitness_tracker.csv")
+        from .models import DailyData, WeeklyData
+
+        df = pd.read_csv(os.path.join(DATA_DIR, "fitness_tracker.csv"), on_bad_lines='skip')
+        # Nettoyer les éventuels espaces/tabs dans les colonnes numériques
+        for col in df.select_dtypes(include='object').columns:
+            df[col] = df[col].astype(str).str.strip()
+        df = pd.to_numeric(df.stack(), errors='coerce').unstack() if False else df
+        for col in ['Max_BPM', 'Avg_BPM', 'Resting_BPM', 'Calories_Burned',
+                    'Session_Duration (hours)', 'Workout_Frequency (days/week)',
+                    'Weight (kg)', 'Fat_Percentage', 'BMI']:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+
         run.rows_in = len(df)
-        
-        # Nettoyage
-        df = df.fillna(0)
-        df = df[df['calories_burn'] >= 0]  # Valeurs valides
-        
-        # Insertion simulée (chunk de 100)
+        df = df[df['Calories_Burned'].fillna(0) >= 0]
+
+        inserted = 0
         for _, row in df.iterrows():
-            # Logique insert
-            pass
-        
+            daily = DailyData(
+                max_bpm=int(row['Max_BPM']) if pd.notna(row['Max_BPM']) else None,
+                resting_bpm=int(row['Resting_BPM']) if pd.notna(row['Resting_BPM']) else None,
+                avg_bpm=int(row['Avg_BPM']) if pd.notna(row['Avg_BPM']) else None,
+                exercise_hours=int(row['Session_Duration (hours)']) if pd.notna(row['Session_Duration (hours)']) else None,
+                calories_burned=int(row['Calories_Burned']) if pd.notna(row['Calories_Burned']) else None,
+                workout_type=str(row['Workout_Type']).strip() if pd.notna(row.get('Workout_Type')) else None,
+            )
+            db.add(daily)
+            db.flush()
+
+            weekly = WeeklyData(
+                weight=float(row['Weight (kg)']) if pd.notna(row['Weight (kg)']) else None,
+                workout_frequency=int(row['Workout_Frequency (days/week)']) if pd.notna(row['Workout_Frequency (days/week)']) else None,
+                fat_percentage=float(row['Fat_Percentage']) if pd.notna(row['Fat_Percentage']) else None,
+                bmi=float(row['BMI']) if pd.notna(row['BMI']) else None,
+            )
+            db.add(weekly)
+            inserted += 1
+
         db.commit()
-        run.rows_out = len(df)
-        
-        logger.info(f"✅ Fitness data synced: {run.rows_out} rows")
-        
+        run.rows_out = inserted
+
+        logger.info(f"✅ Fitness data synced: {inserted} rows")
+
     except Exception as e:
         run.errors_count += 1
         logger.error(f"Fitness sync error: {e}")
@@ -219,20 +253,38 @@ def sync_fitness_data(db: Session, run: EtlRun) -> None:
 def data_quality_check(db: Session, run: EtlRun) -> None:
     """Vérifier la qualité des données (toutes les heures)"""
     try:
-        # Requêtes qualité
+        from .models import User, Activity, Food, DailyData, WeeklyData
+
+        total_users = db.query(User).count()
+        total_activities = db.query(Activity).count()
+        total_foods = db.query(Food).count()
+        total_daily = db.query(DailyData).count()
+        total_weekly = db.query(WeeklyData).count()
+
+        issues = []
+        if total_foods == 0:
+            issues.append("foods table is empty")
+        if total_daily == 0:
+            issues.append("daily_data table is empty")
+
+        status = "healthy" if not issues else "degraded"
         results = {
-            "total_users": db.query(text("SELECT COUNT(*) FROM users")).scalar(),
-            "total_activities": db.query(text("SELECT COUNT(*) FROM activities")).scalar(),
-            "total_foods": db.query(text("SELECT COUNT(*) FROM foods")).scalar(),
-            "last_check": datetime.utcnow().isoformat(),
-            "status": "healthy"
+            "total_users": total_users,
+            "total_activities": total_activities,
+            "total_foods": total_foods,
+            "total_daily_data": total_daily,
+            "total_weekly_data": total_weekly,
+            "issues": issues,
+            "status": status,
         }
-        
-        # LOG structuré JSON
+
         logger.info(f"📊 Quality Check: {json.dumps(results, indent=2)}")
-        
+
+        run.rows_in = total_users + total_activities + total_foods
         run.rows_out = 1
-        
+        if issues:
+            run.errors_count = len(issues)
+
     except Exception as e:
         run.errors_count += 1
         logger.error(f"Quality check error: {e}")

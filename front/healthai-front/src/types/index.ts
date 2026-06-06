@@ -9,6 +9,12 @@ export interface User {
   username?: string;
   name?: string;
   role?: string;
+  plan?: string;
+  weight_kg?: number;
+  height_cm?: number;
+  age?: number;
+  goal?: string;
+  activity_level?: string;
   created_at?: string;
   updated_at?: string;
 }

@@ -10,6 +10,7 @@ type Stats = { total_runs: number; success_count: number; failed_count: number; 
 function statusBadge(s: string) {
   if (s === "success") return <span className="badge badge-success">Succès</span>;
   if (s === "partial")  return <span className="badge badge-warn">Partiel</span>;
+  if (s === "running")  return <span className="badge badge-info">En cours…</span>;
   return <span className="badge badge-danger">Échec</span>;
 }
 
@@ -19,6 +20,8 @@ function sevBadge(s: string) {
   return <span className="badge badge-info">{s}</span>;
 }
 
+const JOBS = ["sync_food_data", "sync_fitness_data", "data_quality_check"];
+
 export default function EtlQuality() {
   const [runs, setRuns]               = useState<Run[]>([]);
   const [selectedRun, setSelectedRun] = useState<number | null>(null);
@@ -26,6 +29,7 @@ export default function EtlQuality() {
   const [stats, setStats]             = useState<Stats | null>(null);
   const [loading, setLoading]         = useState(true);
   const [err, setErr]                 = useState<string | null>(null);
+  const [triggering, setTriggering]   = useState<string | null>(null);
 
   async function load() {
     setLoading(true); setErr(null);
@@ -51,6 +55,18 @@ export default function EtlQuality() {
       setErrors(res.data?.items ?? res.data ?? []);
     } catch (e: any) {
       setErr(e?.response?.data?.detail || "Impossible de charger les erreurs ETL.");
+    }
+  }
+
+  async function triggerJob(jobName: string) {
+    setTriggering(jobName);
+    setErr(null);
+    try {
+      await api.post(`/quality/etl-runs/trigger/${jobName}`);
+      setTimeout(() => { load(); setTriggering(null); }, 3000);
+    } catch (e: any) {
+      setErr(e?.response?.data?.detail || `Impossible de lancer ${jobName}.`);
+      setTriggering(null);
     }
   }
 
@@ -97,6 +113,24 @@ export default function EtlQuality() {
           </div>
         </section>
       )}
+
+      {/* Lancer manuellement */}
+      <section aria-labelledby="etl-trigger-heading" style={{ marginBottom: "1.5rem" }}>
+        <h2 id="etl-trigger-heading" className="section-heading">Lancer un job maintenant</h2>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          {JOBS.map((job) => (
+            <button
+              key={job}
+              className="btn btn-primary"
+              disabled={triggering === job}
+              onClick={() => triggerJob(job)}
+              style={{ fontSize: "0.85rem" }}
+            >
+              {triggering === job ? "⏳ En cours…" : `▶ ${job}`}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {/* Détail runs + erreurs */}
       <section aria-labelledby="etl-detail-heading">

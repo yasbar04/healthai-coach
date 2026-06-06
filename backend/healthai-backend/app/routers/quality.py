@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func, text
 from datetime import datetime, timedelta
@@ -7,6 +7,7 @@ from ..db import SessionLocal
 from ..models import User, EtlRun, EtlError, Activity, NutritionLog, Food
 from ..schemas import EtlRunOut, EtlErrorOut
 from ..security import decode_token
+from ..etl_scheduler import sync_food_data, sync_fitness_data, data_quality_check
 
 router = APIRouter()
 
@@ -114,6 +115,50 @@ def etl_stats(
         "avg_processing_time": None,  # À implémenter
         "status": "healthy" if runs and (success_count / len(runs) * 100) > 95 else "warning"
     }
+
+_ETL_JOBS = {
+    "sync_food_data": sync_food_data,
+    "sync_fitness_data": sync_fitness_data,
+    "data_quality_check": data_quality_check,
+}
+
+def _run_etl_job(job_name: str):
+    db = SessionLocal()
+    try:
+        run = EtlRun(
+            source_name=job_name,
+            status="running",
+            started_at=datetime.utcnow(),
+            rows_in=0, rows_out=0, errors_count=0
+        )
+        db.add(run)
+        db.commit()
+        _ETL_JOBS[job_name](db, run)
+        run.status = "success"
+        run.ended_at = datetime.utcnow()
+        db.commit()
+    except Exception as e:
+        run.status = "failed"
+        run.ended_at = datetime.utcnow()
+        err = EtlError(run_id=run.id, severity="critical", row_reference="", message=str(e), created_at=datetime.utcnow())
+        db.add(err)
+        db.commit()
+    finally:
+        db.close()
+
+@router.post("/etl-runs/trigger/{job_name}")
+def trigger_etl(
+    job_name: str,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(current_user),
+):
+    if job_name not in _ETL_JOBS:
+        raise HTTPException(status_code=404, detail=f"Job '{job_name}' inconnu.")
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Réservé aux admins.")
+    background_tasks.add_task(_run_etl_job, job_name)
+    return {"message": f"Job '{job_name}' lancé en arrière-plan."}
+
 
 @router.get("/data-health-check")
 def health_check(user: User = Depends(current_user), db: Session = Depends(get_db)):

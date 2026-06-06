@@ -1,0 +1,160 @@
+{
+  "fitness": {
+    "workout_type_classifier": {
+      "accuracy": 0.2376,
+      "precision_macro": 0.1344,
+      "recall_macro": 0.1373,
+      "f1_macro": 0.1339,
+      "classes": [
+        "Cardio",
+        "HIIT",
+        "Strength",
+        "Yoga",
+        "\\nStrength",
+        "\\tCardio",
+        "\\tYoga"
+      ],
+      "report": {
+        "Cardio": {
+          "precision": 0.24193548387096775,
+          "recall": 0.21739130434782608,
+          "f1-score": 0.22900763358778625,
+          "support": 69.0
+        },
+        "HIIT": {
+          "precision": 0.21428571428571427,
+          "recall": 0.14285714285714285,
+          "f1-score": 0.17142857142857143,
+          "support": 63.0
+        },
+        "Strength": {
+          "precision": 0.2087912087912088,
+          "recall": 0.25333333333333335,
+          "f1-score": 0.2289156626506024,
+          "support": 75.0
+        },
+        "Yoga": {
+          "precision": 0.27586206896551724,
+          "recall": 0.34782608695652173,
+          "f1-score": 0.3076923076923077,
+          "support": 69.0
+        },
+        "\\nStrength": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 2.0
+        },
+        "\\tCardio": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 2.0
+        },
+        "\\tYoga": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 2.0
+        },
+        "accuracy": 0.2375886524822695,
+        "macro avg": {
+          "precision": 0.13441063941620116,
+          "recall": 0.13734398107068915,
+          "f1-score": 0.13386345362275254,
+          "support": 282.0
+        },
+        "weighted avg": {
+          "precision": 0.23009706313850403,
+          "recall": 0.2375886524822695,
+          "f1-score": 0.230499895911779,
+          "support": 282.0
+        }
+      }
+    },
+    "calories_regressor": {
+      "mae": 272.5889,
+      "rmse": 335.7142,
+      "r2": 0.0026
+    },
+    "feature_importances": {
+      "Age": 0.0863,
+      "Weight (kg)": 0.0999,
+      "Height (m)": 0.0902,
+      "Max_BPM": 0.0866,
+      "Avg_BPM": 0.0883,
+      "Resting_BPM": 0.0784,
+      "Session_Duration (hours)": 0.0967,
+      "Fat_Percentage": 0.1052,
+      "Water_Intake (liters)": 0.0771,
+      "Workout_Frequency (days/week)": 0.0399,
+      "Experience_Level": 0.0321,
+      "BMI": 0.1009,
+      "Gender": 0.0185
+    },
+    "training_samples": 1124,
+    "test_samples": 282
+  },
+  "diet": {
+    "accuracy": 1.0,
+    "precision_macro": 1.0,
+    "recall_macro": 1.0,
+    "f1_macro": 1.0,
+    "classes": [
+      "Balanced",
+      "Low_Carb",
+      "Low_Sodium"
+    ],
+    "report": {
+      "Balanced": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 85.0
+      },
+      "Low_Carb": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 52.0
+      },
+      "Low_Sodium": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 63.0
+      },
+      "accuracy": 1.0,
+      "macro avg": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 200.0
+      },
+      "weighted avg": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 200.0
+      }
+    },
+    "training_samples": 800,
+    "test_samples": 200,
+    "feature_importances": {
+      "Age": 0.0245,
+      "Weight_kg": 0.0256,
+      "Height_cm": 0.0221,
+      "BMI": 0.0273,
+      "Daily_Caloric_Intake": 0.0299,
+      "Weekly_Exercise_Hours": 0.028,
+      "Adherence_to_Diet_Plan": 0.0299,
+      "Dietary_Nutrient_Imbalance_Score": 0.025,
+      "Cholesterol_mg/dL": 0.0277,
+      "Glucose_mg/dL": 0.0305,
+      "Gender_enc": 0.0044,
+      "Disease_Type_enc": 0.7124,
+      "Severity_enc": 0.006,
+      "Physical_Activity_Level_enc": 0.0067
+    }
+  }
+}
