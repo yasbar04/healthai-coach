@@ -15,7 +15,8 @@ scikit-learn>=1.4.0
 python-multipart>=0.0.9
 slowapi==0.1.9
 redis>=5.0.0
-prometheus-fastapi-instrumentator>=7.0.0
+starlette==0.41.3
+prometheus-fastapi-instrumentator==6.1.0
 pytest>=8.0.0
 pytest-cov>=5.0.0
 pytest-asyncio>=0.23.0
