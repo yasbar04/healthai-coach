@@ -305,7 +305,7 @@ export default function SocialPage() {
           postId={commentPostId}
           currentUserId={currentUserId}
           onClose={() => setCommentPostId(null)}
-          onCountChange={count => handleCommentCount(commentPostId, count)}
+          onCountChange={count => handleCommentCount(commentPostId as number, count)}
         />
       )}
     </div>
