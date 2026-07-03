@@ -18,6 +18,7 @@ import ActivityPage from "./pages/ActivityPage";
 import ProgramPage from "./pages/ProgramPage";
 import ProfilePage from "./pages/ProfilePage";
 import MealAnalysisPage from "./pages/MealAnalysisPage";
+import SocialPage from "./pages/SocialPage";
 
 export default function App() {
   return (
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/meal-analysis" element={<MealAnalysisPage />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/social" element={<SocialPage />} />
         <Route path="/users" element={<AdminRoute><Users /></AdminRoute>} />
         <Route path="/etl" element={<AdminRoute><EtlQuality /></AdminRoute>} />
       </Route>

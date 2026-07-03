@@ -1,6 +1,9 @@
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -11,7 +14,7 @@ from .db import Base, engine
 from .seed import seed_if_empty, seed_bdd_if_empty, seed_exercises_cache, seed_food_catalog, seed_fitness_update
 from .etl_scheduler import etl_scheduler, setup_etl_jobs
 
-from .routers import auth, users, billing, activities, nutrition, analytics, quality, ai, biometrics, consultations, tenant, bdd, exercises_ext
+from .routers import auth, users, billing, activities, nutrition, analytics, quality, ai, biometrics, consultations, tenant, bdd, exercises_ext, social
 from .routers import ml as ml_router
 
 # Create tables
@@ -24,6 +27,8 @@ _NEW_COLUMNS = [
     "ALTER TABLE activities ADD COLUMN water_ml INTEGER",
     "ALTER TABLE activities ADD COLUMN weight_kg REAL",
     "ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'",
+    "ALTER TABLE users ADD COLUMN display_name TEXT",
+    "ALTER TABLE users ADD COLUMN avatar_url TEXT",
 ]
 with engine.connect() as _conn:
     for _stmt in _NEW_COLUMNS:
@@ -40,7 +45,6 @@ app = FastAPI(title="HealthAI Coach API", version="1.0.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS must be added before routes
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://localhost:3000", "*"],
@@ -48,6 +52,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_UPLOADS_DIR = "uploads"
+os.makedirs(_UPLOADS_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=_UPLOADS_DIR), name="uploads")
+
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+    Instrumentator().instrument(app).expose(app)
+except ImportError:
+    pass
 
 # Seed demo data
 seed_if_empty()
@@ -74,6 +88,7 @@ app.include_router(tenant.router, prefix="/tenant", tags=["tenant"])
 app.include_router(bdd.router)
 app.include_router(exercises_ext.router)
 app.include_router(ml_router.router, tags=["ml"])
+app.include_router(social.router)
 
 
 @app.get("/")

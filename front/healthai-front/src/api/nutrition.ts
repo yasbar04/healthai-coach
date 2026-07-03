@@ -1,4 +1,4 @@
-import { api as apiClient } from './client'
+import { api as apiClient, slowApi } from './client'
 
 export interface NutritionLog {
   id: number
@@ -75,7 +75,7 @@ export const nutritionApi = {
   analyzeWithAI: (file: File) => {
     const form = new FormData()
     form.append('file', file)
-    return apiClient.post('/ai/analyze-meal', form, {
+    return slowApi.post('/ai/analyze-meal', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then((r) => r.data)
   },

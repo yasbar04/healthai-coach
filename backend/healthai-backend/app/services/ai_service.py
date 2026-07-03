@@ -1,13 +1,16 @@
 import asyncio
 import base64
 import json
+import logging
 import re
 from typing import Any
 import httpx
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
 OLLAMA_TIMEOUT_SECS = 55        # text generation cutoff
-OLLAMA_VISION_TIMEOUT_SECS = 100  # vision (llava) is slower
+OLLAMA_VISION_TIMEOUT_SECS = 240   # vision (llava) is slower; httpx gets +10s to avoid race
 
 NUTRITION_SYSTEM_PROMPT = """Tu es un expert en nutrition et diététique certifié. Tu analyses des photos de repas et fournis des informations nutritionnelles précises.
 
@@ -107,7 +110,7 @@ class AIService:
 
     async def _ollama_vision(self, image_b64: str, prompt: str) -> str:
         async def _call() -> str:
-            async with httpx.AsyncClient(timeout=OLLAMA_VISION_TIMEOUT_SECS) as http:
+            async with httpx.AsyncClient(timeout=OLLAMA_VISION_TIMEOUT_SECS + 10) as http:
                 resp = await http.post(
                     f"{self._ollama_base}/api/generate",
                     json={
@@ -116,7 +119,7 @@ class AIService:
                         "images": [image_b64],
                         "stream": False,
                         "format": "json",
-                        "options": {"temperature": 0.3, "num_predict": 1536},
+                        "options": {"temperature": 0.3, "num_predict": 1024},
                     },
                 )
                 resp.raise_for_status()
@@ -147,7 +150,8 @@ class AIService:
             raise ValueError("Impossible de parser la réponse JSON de l'IA")
 
     def _fallback_meal_photo(self, user_profile: dict) -> dict:
-        import random
+        import random, traceback
+        logger.warning("[fallback_meal_photo] appelé — stack:\n%s", "".join(traceback.format_stack(limit=6)))
         goal = user_profile.get("goal", "maintain")
 
         # Four varied demo meals — one is picked pseudo-randomly so repeated calls feel different
@@ -855,18 +859,36 @@ class AIService:
         allergy_note = f"Allergies connues: {', '.join(allergies)}." if allergies else ""
 
         if self._provider == "ollama":
+            # Keep prompt short — llava is a vision model, long prompts slow it down a lot
+            allergy_str = f" Allergies: {', '.join(allergies)}." if allergies else ""
             prompt = (
-                f"{NUTRITION_SYSTEM_PROMPT}\n\n"
-                f"Analyse ce repas. {context} {allergy_note} Réponds UNIQUEMENT en JSON valide."
+                f"Analyse cette photo de repas. Identifie chaque aliment visible, estime les quantités en grammes et les calories.{allergy_str}"
+                f" Réponds UNIQUEMENT en JSON valide:\n"
+                f'{{"foods_detected":[{{"name":"nom","quantity_g":150,"calories":200,'
+                f'"macros":{{"protein_g":10,"carbs_g":25,"fat_g":5,"fiber_g":2,"sugar_g":3,"sodium_mg":100}}}}],'
+                f'"total_calories":500,"macros":{{"protein_g":25,"carbs_g":60,"fat_g":15,"fiber_g":5,"sugar_g":8,"sodium_mg":400}},'
+                f'"health_score":75,"imbalances":["..."],"suggestions":["..."],"meal_type_detected":"lunch","analysis_confidence":0.8}}'
             )
             try:
-                if not await self._ollama_available():
+                available = await self._ollama_available()
+                logger.info("[Ollama vision] available=%s model=%s", available, self._ollama_vision_model)
+                if not available:
                     return self._fallback_meal_photo(user_profile)
                 raw = await self._ollama_vision(image_b64, prompt)
                 result = self._parse_json_response(raw)
+                # Ensure required keys exist (llava sometimes omits some)
+                result.setdefault("foods_detected", [])
+                result.setdefault("total_calories", 0)
+                result.setdefault("macros", {"protein_g": 0, "carbs_g": 0, "fat_g": 0, "fiber_g": 0, "sugar_g": 0, "sodium_mg": 0})
+                result.setdefault("health_score", 70)
+                result.setdefault("imbalances", [])
+                result.setdefault("suggestions", [])
+                result.setdefault("meal_type_detected", "unknown")
+                result.setdefault("analysis_confidence", 0.7)
                 result["_ollama"] = True
                 return result
-            except Exception as e:
+            except Exception as _exc:
+                logger.error("[Ollama vision] exception: %s: %s", type(_exc).__name__, _exc)
                 return self._fallback_meal_photo(user_profile)
 
         try:

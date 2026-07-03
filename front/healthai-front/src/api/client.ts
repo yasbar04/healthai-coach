@@ -7,6 +7,12 @@ export const api = axios.create({
   timeout: 120000,
 });
 
+// Client dédié aux appels longs (analyse photo llava ~2-4 min)
+export const slowApi = axios.create({
+  baseURL,
+  timeout: 300000, // 5 min
+});
+
 // Utility to extract error message
 export function getErrorMessage(err: any): string {
   if (!err) return "Une erreur est survenue";
@@ -54,3 +60,20 @@ recClient.interceptors.request.use((config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+slowApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem("healthai_token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+slowApi.interceptors.response.use(
+  (r) => r,
+  (err: AxiosError) => {
+    if (err?.response?.status === 401) {
+      localStorage.removeItem("healthai_token");
+      window.dispatchEvent(new Event("unauthorized"));
+    }
+    return Promise.reject(err);
+  }
+);

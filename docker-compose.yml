@@ -115,6 +115,49 @@ services:
     environment:
       - MONGO_INITDB_DATABASE=healthai_recommendations
 
+  # ═══════════════════════════════════════════════════════════════
+  # Prometheus — Metrics collection
+  # ═══════════════════════════════════════════════════════════════
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: healthai-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - healthai-network
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  # ═══════════════════════════════════════════════════════════════
+  # Grafana — Dashboards
+  # ═══════════════════════════════════════════════════════════════
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: healthai-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=healthai2024
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - healthai-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
 networks:
   healthai-network:
     driver: bridge
@@ -124,3 +167,5 @@ volumes:
     driver: local
   redis_data:
   mongo_data:
+  prometheus_data:
+  grafana_data:

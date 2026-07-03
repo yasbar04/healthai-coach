@@ -1,1 +1,1 @@
-from . import auth, users, billing, activities, nutrition, analytics, quality, ai, biometrics, consultations, tenant
+from . import auth, users, billing, activities, nutrition, analytics, quality, ai, biometrics, consultations, tenant, social

@@ -16,6 +16,7 @@ const MAIN_LINKS = [
   { to: "/nutrition",     end: false, icon: "🥗", label: "Nutrition"       },
   { to: "/meal-analysis", end: false, icon: "📸", label: "Analyse repas",  premium: true },
   { to: "/program",       end: false, icon: "📅", label: "Programme IA",   premium: true },
+  { to: "/social",        end: false, icon: "🌐", label: "Communauté"      },
   { to: "/profile",       end: false, icon: "👤", label: "Profil"          },
   { to: "/analytics",     end: false, icon: "📈", label: "Analytics"       },
 ];

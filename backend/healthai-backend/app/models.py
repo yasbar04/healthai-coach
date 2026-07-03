@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, DateTime, Float, ForeignKey, Text, Boolean
+from sqlalchemy import Column, Integer, String, Date, DateTime, Float, ForeignKey, Text, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -9,12 +9,17 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
-    plan = Column(String(50), nullable=False, default="freemium")  # freemium|premium|premium_plus|b2b
-    role = Column(String(50), nullable=False, default="user")  # user|admin
+    plan = Column(String(50), nullable=False, default="freemium")
+    role = Column(String(50), nullable=False, default="user")
     created_at = Column(DateTime, default=datetime.utcnow)
+    display_name = Column(String(100), nullable=True)
+    avatar_url = Column(Text, nullable=True)
 
     activities = relationship("Activity", back_populates="user")
     nutrition_logs = relationship("NutritionLog", back_populates="user")
+    social_posts = relationship("SocialPost", back_populates="author")
+    social_likes = relationship("SocialLike", back_populates="user")
+    social_comments = relationship("SocialComment", back_populates="author")
 
 class Activity(Base):
     __tablename__ = "activities"
@@ -222,8 +227,44 @@ class Aliment(Base):
 
 
 class ExerciseCache(Base):
-    """Cache persistant pour les exercices ExerciseDB (évite les 429 rate-limit)."""
     __tablename__ = "exercise_cache"
     cache_key = Column(String(255), primary_key=True)
-    payload = Column(Text, nullable=False)  # JSON sérialisé
+    payload = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SocialPost(Base):
+    __tablename__ = "social_posts"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    image_url = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    author = relationship("User", back_populates="social_posts")
+    likes = relationship("SocialLike", back_populates="post", cascade="all, delete-orphan")
+    comments = relationship("SocialComment", back_populates="post", cascade="all, delete-orphan")
+
+
+class SocialLike(Base):
+    __tablename__ = "social_likes"
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(Integer, ForeignKey("social_posts.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    __table_args__ = (UniqueConstraint("post_id", "user_id", name="uq_like_post_user"),)
+
+    post = relationship("SocialPost", back_populates="likes")
+    user = relationship("User", back_populates="social_likes")
+
+
+class SocialComment(Base):
+    __tablename__ = "social_comments"
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(Integer, ForeignKey("social_posts.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    post = relationship("SocialPost", back_populates="comments")
+    author = relationship("User", back_populates="social_comments")
